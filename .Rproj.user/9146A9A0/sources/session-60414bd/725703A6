@@ -1,0 +1,27 @@
+{
+    "id": "725703A6",
+    "path": "~/OutilVersionning_2025/Projet1/SGV_avec_R/Analyse_TPM.R",
+    "project_path": "Analyse_TPM.R",
+    "type": "r_source",
+    "hash": "4099477715",
+    "contents": "",
+    "dirty": false,
+    "created": 1741773874870.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "279,0",
+        "scrollLine": "255"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1741774386,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1741774386919,
+    "read_only": false,
+    "read_only_alternatives": []
+}

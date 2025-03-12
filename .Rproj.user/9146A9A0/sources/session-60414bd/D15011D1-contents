@@ -1,0 +1,279 @@
+---
+title: "Analyses TPM"
+author: "YAMS"
+date: "2024-03-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list = ls())
+Sys.setenv(TZ='GMT')
+knitr::opts_chunk$set(echo = TRUE)
+options(tinytex.verbose = TRUE)
+```
+
+
+Visite: le numéro de la visite
+zone_collecte : le nom de la zone où il ya eu la collecte
+```{r, echo=T, warning=F, message=F}
+Visite <- "280225"
+
+zone_collecte<- "Gety"
+```
+
+
+
+```{r, echo=T, warning=F, message=F}
+
+    # List of required packages
+x1 <- c("readxl", "writexl", "lubridate", "stringr", "dplyr", "data.table", "remotes", "robotoolbox", "robotoolbox", 
+      "lubridate", "openxlsx")
+    
+    # Install any packages not yet installed
+x2 <- x1 %in% row.names(installed.packages())
+    if (any(x2 == FALSE)) { install.packages(x1[! x2]) }
+
+    # Load all packages    
+lapply(x1, library, character.only = TRUE)
+    
+
+
+# source("functions/analyses.R")
+source("functions/analyses.2.R")
+source("functions/apply_analysis.R")
+# source("functions/fichier_correspondance_function.R")
+# source("functions/format_results.R")
+source("functions/select_integer_from_dataset.R")
+source("functions/select_multiple_from_dataset.R")
+source("functions/select_one_from_dataset.R")
+source("functions/check_for_duplicate_headers.R")
+# source("functions/format_results_from_kobo.R")
+
+# source("functions/export_in_reach_format_multiple_sheets.R")
+
+'%!in%' = Negate('%in%')
+```
+
+
+
+```{r, echo=T, warning=F, message=F}
+TPM_DRC_Dap <- read_excel("input/TPM_DRC_Dap.xlsx")
+TPM_DRC_Dap <- TPM_DRC_Dap %>%
+  mutate(index = as.numeric(index)) %>%
+  arrange(index) %>% mutate(type_analyses = ifelse(grepl("\\_autre", name_kobo), NA, type_analyses))
+
+#on assure que pour le variables _autre (text) on a pas d'aggregation, sinon ca peux poser un probleme aprés
+```
+
+#1. import datasets
+
+#2. Importation Kobo 
+```{r, echo=T, warning=F, message=F}
+#1. import datasets
+
+# data_path<-"input/DRC2303_Cleaning Log_Visit 4_Rimba.xlsm"
+dataset <- read_excel("input/DRC2303_Dataset_PANDA_npi_Gety_280225.xlsm", 
+                                    sheet = "Clean Data")
+questionnaire<-"input/DRC2303_Dataset_PANDA_npi_Gety_280225.xlsm"
+#2. Importation Kobo 
+tool.survey_tot <- read_excel(questionnaire,
+                              sheet = "survey")
+
+tool.choices_tot <- read_excel(questionnaire,
+                               sheet = "choices")
+
+
+
+```
+
+# 1. choisir si les HEADERS de l'ensemble de données sont au format "nom" ou "étiquette".
+# 2. choisir si les VALEURS de l'ensemble de données sont au format "nom" ou "étiquette".
+# 3. sélectionner l'en-tête de colonne dans la feuille d'enquête ex : "labels::english"
+
+```{r, echo=T, warning=F, message=F}
+name_or_label_headers = "name"
+name_or_label_values = "name"
+
+
+label_column= "label"
+separator = "/"
+values_to_NA<- c(NA,"NA","","SL", -999, 999)
+tool.survey<- tool.survey_tot
+tool.choices<- tool.choices_tot
+
+
+```
+
+
+
+
+# ```{r, echo=T, warning=F, message=F}
+# #check correspondence
+# ## Check that all the names in Data_clean are in the TPM_DRC_Dap dataset
+# length(TPM_DRC_Dap$name_R)==length(names(dataset))
+# 
+# # voyons visuellement où se trouve la différence
+# max_ln <- max(c(length(TPM_DRC_Dap$name_R), length(names(dataset))))
+# difference_check<- data.frame(label_fichier_aggregation = c(TPM_DRC_Dap$name_R,rep(NA, max_ln - length(TPM_DRC_Dap$name_R))),
+#                       name_BDD = c(names(dataset),rep(NA, max_ln - length(names(dataset)))))
+# 
+# difference_check<-difference_check%>%mutate(difference = ifelse(label_fichier_aggregation==name_BDD , "NO", "OUI"))
+# 
+# if(length(filter(difference_check, difference %in%c("OUI"))$difference)>0){
+# 
+# 
+#   print("Il y a une différence entre les titres des colonnes de la BDD et la colonne name_kobo dans le le DAP. Cela peut être dû aux colonnes ajoutées ou supprimées par la suite dans la BDD originale.")
+# }else{ "c'est tout bien avec le DAP"}
+# writexl::write_xlsx(difference_check,"difference_check_DAP.xlsx ")
+
+<!-- ``` -->
+
+
+
+
+```{r, echo=T, warning=F, message=F}
+
+#Vérifions s'il n'y a pas de doublons d'en-têtes dans le jeu de données
+check_for_duplicate_headers_list<- check_for_duplicate_headers(dataset=dataset,
+                                      questions = tool.survey,
+                                      choices = tool.choices,
+                                      name_or_label_headers = name_or_label_headers,
+                                      label_column = label_column,
+                                      #specify this argument only if asked
+                                      # ordered = T
+                                      )
+ 
+dataset<- check_for_duplicate_headers_list[[1]]
+tool.survey<- check_for_duplicate_headers_list[[2]]
+
+
+
+select_one_questions<- select_one_from_dataset(dataset=dataset,
+                                               questions = tool.survey,
+                                               choices = tool.choices,
+                                               name_or_label_headers = name_or_label_headers,
+                                               label_column = label_column)
+
+integer_questions<- select_integer_from_dataset(dataset=dataset,
+                                                questions = tool.survey,
+                                                choices = tool.choices,
+                                                name_or_label_headers = name_or_label_headers,
+                                                label_column = label_column)
+
+select_multiple_questions<- select_multiple_from_dataset(dataset=dataset,
+                                                         questions = tool.survey,
+                                                         choices = tool.choices,
+                                                         name_or_label_headers = name_or_label_headers,
+                                                         separator =separator)
+#### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### ###
+
+categorical_analysis<- "frequency_analysis"
+# dataset1<-dataset
+
+numerical_analysis<- "mean_analysis"
+# weights
+
+weights_column="weight"
+
+disaggregation1 = "none"
+disaggregation2 = "none"
+disaggregation3 = "none"
+
+#### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### 
+#### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### 
+
+#### let' run analysis
+
+tot_results<- apply_analysis(select_one_questions, 
+                    select_multiple_questions,
+                    integer_questions,
+                    categorical_analysis,
+                    numerical_analysis,
+                    dataset = dataset,
+                    weights_column=weights_column,
+                    disaggregation1 = disaggregation1,
+                    disaggregation2 = disaggregation2,
+                    disaggregation3 = disaggregation3)
+
+
+tot_results<-tot_results%>% 
+  mutate(answer_variable_name = ifelse(as.character(answer_variable_name) == "0", "non", as.character(answer_variable_name)))%>% 
+  mutate(answer_variable_name = ifelse(as.character(answer_variable_name) == "1", "oui", as.character(answer_variable_name))) %>% left_join(TPM_DRC_Dap, c("question_variable_name" = "name_R"))
+tot_results<-tot_results%>% mutate(Visite=Visite,zone_collecte=zone_collecte)%>% 
+  select("Visite","zone_collecte","disaggregation1_by","disaggregation1", "disaggregation3_by","question.label","question_variable_name","answer_variable_name","n","N","Stat","type_analyses","question_type")
+print( "L'analyses a pris fin, felicitations")
+
+
+
+#si la question est "autre", ajouter les options de la question sans autre
+#create fichier de correspondance
+names(tool.survey)[names(tool.survey) == "label::Français (fr)"] <- "description variable"
+names(tool.choices)[names(tool.choices) == "label::Français (fr)"] <- "reponse en mots"
+
+#create fichier correspondance html-label for CDT to use
+tool.survey$question <- gsub(".* ","", tool.survey$type)
+
+#si la question est "autre", ajouter les options de la question sans autre
+
+fichier_correspondance<- left_join(tool.survey%>%select(type,question, name, `description variable`), tool.choices%>%select(list_name, name, `reponse en mots`),by = c( "question" = "list_name"))%>%distinct()%>%arrange(name.x)%>%select(-question)%>%
+  ## ajouter note pour question pour boire, de cette faison il va etre plus claire dans le journal de nettoyage
+  mutate(`description variable` = ifelse(name.x =="besoins_eau_boire",paste0("Votre ménage dispose-t'il actuellement de suffisamment d'eau pour répondre aux besoins suivants :",`description variable`), `description variable`) )%>%
+  ## pour calculate obstacle_sante_non_satisfait ajouter question
+  mutate(`description variable`= ifelse(name.x =="obstacle_sante_non_satisfait","2.1.e) Vous avez indiqué que un ou plusieurs membres du ménage navait pas pu accéder aux soins nécessaires au cours des 3 derniers mois. Quels obstacles empêchant l accès aux soins de santé votre ménage a-t-il rencontrés?", `description variable`))
+
+
+
+names(fichier_correspondance)[names(fichier_correspondance) == "name.y"] <- "reponse en HML"
+names(fichier_correspondance)[names(fichier_correspondance) == "name.x"] <- "question en HML"
+
+
+
+
+# Filtrer les tool.survey sans nom et les groupes de début/fin
+fichier_correspondance <- fichier_correspondance %>%
+  dplyr::filter(!is.na(type)) %>%
+  dplyr::filter(!grepl("(begin|end)_group", type))
+
+selec_one <- fichier_correspondance %>%
+  filter(grepl("select_(one)", type)) %>% mutate(question_variable_name=`question en HML`) %>%select(question_variable_name,`reponse en mots`,`reponse en HML`)
+
+
+select_multple <- fichier_correspondance %>%
+  filter(grepl("select_(multiple)", type)) %>% mutate(question_variable_name=paste(`question en HML`, `reponse en HML` , sep="/"))%>% select(question_variable_name,`reponse en mots`)
+
+
+
+tot_results1<-tot_results %>% filter(question_type=="select_one")
+tot_results2<-tot_results %>% filter(question_type=="select_multiple")
+tot_results3<-tot_results %>% filter(question_type=="integer") %>% mutate(`reponse en mots`="")
+
+tot_results1<-tot_results1 %>% left_join(selec_one,c("question_variable_name" = "question_variable_name","answer_variable_name" = "reponse en HML"))
+tot_results2<-tot_results2 %>% left_join(select_multple,c("question_variable_name" = "question_variable_name") )
+
+tot_results <- list(tot_results1, tot_results1, tot_results3)
+
+tot_results <- bind_rows(tot_results1, tot_results2, tot_results3)
+tot_results <- tot_results%>% select(Visite,zone_collecte,disaggregation1_by,disaggregation1,question.label,question_variable_name,answer_variable_name, `reponse en mots`,n,N,Stat,type_analyses,question_type)
+
+tot_results <- tot_results %>%
+  filter(
+    answer_variable_name != "non",
+    !(question_type == "select_multiple" & grepl("R", question_type))
+  )
+
+
+```
+
+
+
+##exportation  des resultats
+```{r, echo=T, warning=F, message=F}
+
+
+dfs_resultats <- list(dataset = dataset,
+                      tot_results = tot_results)
+
+writexl::write_xlsx(dfs_resultats, paste0("Output/", "Analyses_", zone_collecte, "_", Visite, ".xlsx"))
+
+
+```
